@@ -1,0 +1,136 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Deny All Catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'raniamahmd25@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if true;
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && (
+        incoming().role == 'user' ||
+        (incoming().role == 'admin' && request.auth.token.email == 'raniamahmd25@gmail.com')
+      );
+      allow update: if isSignedIn() && isValidId(userId) && (
+        request.auth.uid == userId || isAdmin()
+      ) && (
+        incoming().role == existing().role || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Games and Applications Catalogue
+    // Allows publishing by both authenticated users and guests without requiring login
+    match /items/{itemId} {
+      allow get, list: if true;
+      allow create: if isValidId(itemId) &&
+        incoming().title is string && incoming().title.size() > 0 && incoming().title.size() <= 120 &&
+        incoming().description is string && incoming().description.size() <= 5000 &&
+        incoming().downloadUrl is string && incoming().downloadUrl.size() <= 2000 &&
+        incoming().version is string && incoming().version.size() <= 30 &&
+        incoming().publisherName is string && incoming().publisherName.size() <= 100 &&
+        incoming().publisherId is string && incoming().publisherId.size() <= 128 &&
+        (incoming().type == 'game' || incoming().type == 'app') &&
+        (!isSignedIn() || incoming().publisherId == request.auth.uid || incoming().publisherId.size() > 0);
+
+      allow update: if isValidId(itemId) && (
+        (isSignedIn() && (existing().publisherId == request.auth.uid || isAdmin())) ||
+        // Allow updating stats (downloadsCount, ratingAverage, ratingCount, commentsCount, updatedAt)
+        incoming().diff(existing()).affectedKeys().hasOnly(['downloadsCount', 'ratingAverage', 'ratingCount', 'commentsCount', 'updatedAt'])
+      );
+
+      allow delete: if isValidId(itemId) && (
+        (isSignedIn() && (existing().publisherId == request.auth.uid || isAdmin())) ||
+        isAdmin()
+      );
+    }
+
+    // Ratings Collection
+    match /ratings/{ratingId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isValidId(ratingId) &&
+        request.auth.uid == incoming().userId &&
+        incoming().stars is number &&
+        incoming().stars >= 1 && incoming().stars <= 5 &&
+        incoming().itemId is string &&
+        ratingId == incoming().itemId + '_' + request.auth.uid;
+
+      allow update: if isSignedIn() && isValidId(ratingId) &&
+        (existing().userId == request.auth.uid || isAdmin()) &&
+        incoming().stars is number &&
+        incoming().stars >= 1 && incoming().stars <= 5;
+
+      allow delete: if isSignedIn() && isValidId(ratingId) &&
+        (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // Comments Collection
+    match /comments/{commentId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isValidId(commentId) &&
+        request.auth.uid == incoming().userId &&
+        incoming().content is string &&
+        incoming().content.size() > 0 &&
+        incoming().content.size() <= 1500 &&
+        incoming().itemId is string;
+
+      allow update: if isSignedIn() && isValidId(commentId) && (
+        (existing().userId == request.auth.uid && incoming().content is string && incoming().content.size() <= 1500) ||
+        isAdmin() ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['isReported', 'reportCount'])
+      );
+
+      allow delete: if isSignedIn() && isValidId(commentId) && (
+        (existing().userId == request.auth.uid || isAdmin())
+      );
+    }
+
+    // Downloads Logging Collection
+    match /downloads/{downloadId} {
+      allow create: if isValidId(downloadId) &&
+        incoming().itemId is string &&
+        incoming().sessionId is string;
+      allow read: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // Abuse Reports Collection
+    match /reports/{reportId} {
+      allow create: if isSignedIn() && isValidId(reportId) &&
+        incoming().reporterId == request.auth.uid &&
+        incoming().reason is string &&
+        incoming().reason.size() <= 500 &&
+        incoming().status == 'pending';
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User public and personal profile information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 120 },
+        "photoURL": { "type": "string", "maxLength": 1000000 },
+        "bio": { "type": "string", "maxLength": 500 },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "displayName", "email", "role"]
+    },
+    "Item": {
+      "title": "Item",
+      "description": "Published game or application item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 120 },
+        "type": { "type": "string", "enum": ["game", "app"] },
+        "category": { "type": "string", "maxLength": 50 },
+        "description": { "type": "string", "maxLength": 5000 },
+        "downloadUrl": { "type": "string", "maxLength": 2000 },
+        "version": { "type": "string", "maxLength": 30 },
+        "imageUrl": { "type": "string", "maxLength": 1000000 },
+        "publisherId": { "type": "string", "maxLength": 128 },
+        "publisherName": { "type": "string", "maxLength": 100 },
+        "publisherPhoto": { "type": "string", "maxLength": 1000000 },
+        "downloadsCount": { "type": "number" },
+        "ratingAverage": { "type": "number" },
+        "ratingCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "isFeatured": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "type", "category", "description", "downloadUrl", "version", "publisherId", "publisherName"]
+    },
+    "Rating": {
+      "title": "Rating",
+      "description": "User star rating for a specific game or application",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "itemId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userDisplayName": { "type": "string", "maxLength": 100 },
+        "stars": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "itemId", "userId", "stars"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "User comment or review on a game or application",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "itemId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userDisplayName": { "type": "string", "maxLength": 100 },
+        "userPhotoURL": { "type": "string", "maxLength": 1000000 },
+        "content": { "type": "string", "maxLength": 1500 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "isReported": { "type": "boolean" },
+        "reportCount": { "type": "number" }
+      },
+      "required": ["id", "itemId", "userId", "content"]
+    },
+    "Download": {
+      "title": "Download",
+      "description": "Recorded download event to prevent duplicate spam counts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "itemId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "sessionId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "itemId", "sessionId"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Report submitted by users for moderation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "targetType": { "type": "string", "enum": ["item", "comment"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "reporterId": { "type": "string", "maxLength": 128 },
+        "reporterName": { "type": "string", "maxLength": 100 },
+        "reason": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["pending", "reviewed", "dismissed"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "targetType", "targetId", "reporterId", "reason", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User public profiles and roles"
+    },
+    "/items/{itemId}": {
+      "schema": "Item",
+      "description": "Catalogue of published games and apps"
+    },
+    "/ratings/{ratingId}": {
+      "schema": "Rating",
+      "description": "Ratings provided by users"
+    },
+    "/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "User comments on items"
+    },
+    "/downloads/{downloadId}": {
+      "schema": "Download",
+      "description": "Download logs for tracking and spam-prevention"
+    },
+    "/reports/{reportId}": {
+      "schema": "Report",
+      "description": "Abuse reports reviewed by administrators"
+    }
+  }
+}
